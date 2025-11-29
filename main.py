@@ -165,32 +165,61 @@ class FileRow(ctk.CTkFrame):
         self.update_callback()
 
     def calculate_price(self):
+        import math
         try:
-            pages = int(self.entry_pages.get())
+            pages = int(self.entry_pages.get())  # Số trang từ file PDF/DOCX
         except ValueError:
             pages = 0
+        
+        if pages == 0:
+            self.lbl_price.configure(text="0 VND")
+            return 0
         
         size = self.var_size.get()
         p_type = self.var_type.get()
         color = self.var_color.get()
-        sides = int(self.var_sides.get())  # 1 or 2
-        pages_per_sheet = int(self.var_pages_per_sheet.get())  # 1, 2, 4, 6, 9
+        sides_str = self.var_sides.get()
+        pages_per_sheet = int(self.var_pages_per_sheet.get())
 
         try:
-            unit_price = self.prices[size][p_type][color]
+            sides = int(sides_str)
             
-            # Tính số mặt giấy thực tế cần in
-            # Số mặt giấy = (Số trang / pages_per_sheet) / sides
-            import math
-            sheets_needed = math.ceil(pages / pages_per_sheet)
-            if sides == 2:
-                # Nếu in 2 mặt, số mặt giấy giảm đi 1 nửa (làm tròn lên)
-                sheets_needed = math.ceil(sheets_needed / 2)
+            # LOGIC ĐÚNG: SỐ TRANG → SỐ TỜ GIẤY VẬT LÝ
             
-            total = sheets_needed * unit_price
+            # Bước 1: Áp dụng ghép trang (pages_per_sheet)
+            # Ví dụ: 32 trang, ghép 2 → cần 16 mặt để in
+            faces_to_print = math.ceil(pages / pages_per_sheet/2)
+            
+ 
+            sheets_physical = math.ceil(faces_to_print / 2)
+            
+            # Bước 3: Áp dụng chế độ in (1 mặt hay 2 mặt)
+            if sides == 1:
+                # In 1 mặt: chỉ dùng 1 mặt của tờ giấy
+                # → Cần gấp đôi số tờ (vì mặt sau bỏ trống)
+                sheets_needed = sheets_physical*2  # Mỗi mặt cần 1 tờ
+            else:  # sides == 2
+                # In 2 mặt: dùng cả 2 mặt của tờ giấy
+                sheets_needed = sheets_physical
+            
+            # Bước 4: Tính giá (GIÁ TRONG CONFIG = GIÁ/TỜ)
+            price_per_sheet = self.prices[size][p_type][color][sides_str]
+            
+            # Bước 5: Tổng tiền = SỐ TỜ × GIÁ/TỜ
+            subtotal = sheets_needed * price_per_sheet
+            print(sheets_needed)
+            
+            # Bước 6: Làm tròn lên hàng nghìn
+            total = int(math.ceil(subtotal / 1000) * 1000)
+            
+            print(f"DEBUG: pages={pages}, ghép={pages_per_sheet}, faces={faces_to_print}, sheets_phys={sheets_physical}, in_{sides}_mặt, tờ_cần={sheets_needed}, giá/tờ={price_per_sheet}, tổng={total}")
+            
             self.lbl_price.configure(text=format_currency(total))
             return total
-        except KeyError:
+        except (KeyError, ValueError) as e:
+            print(f"Error calculating price: {e}")
+            print(f"size={size}, p_type={p_type}, color={color}, sides={sides_str}")
+            self.lbl_price.configure(text="0 VND")
             return 0
 
     def get_total(self):
@@ -561,7 +590,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def load_config(self):
         try:
-            with open("config.json", "r") as f:
+            with open("config.json", "r", encoding="utf-8") as f:
                 data = json.load(f)
                 self.prices = data["prices"]
         except Exception as e:
@@ -652,9 +681,6 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             if hasattr(self, 'drop_zone'):
                 self.drop_zone.pack(fill="both", expand=True, padx=20, pady=20)
         self.update_total()
-        if not self.files and hasattr(self, 'drop_label'):
-            self.drop_label.pack(pady=80)
-        self.update_total()
 
     def apply_global(self, size=None, p_type=None, color=None, sides=None, pages_per_sheet=None):
         for row in self.files:
@@ -668,7 +694,10 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.update_total()
 
     def update_total(self):
-        total = sum(row.get_total() for row in self.files)
+        import math
+        total = sum(f.get_total() for f in self.files)
+        # Làm tròn lên đến hàng nghìn
+        total = int(math.ceil(total / 1000) * 1000)
         self.lbl_total.configure(text=format_currency(total))
 
 if __name__ == "__main__":

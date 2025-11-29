@@ -2,4 +2,7 @@ customtkinter
 tkinterdnd2
 pypdf
 python-docx
+python-pptx
+openpyxl
+Pillow
 packaging
