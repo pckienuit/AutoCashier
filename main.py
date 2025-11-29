@@ -47,8 +47,10 @@ class FileRow(ctk.CTkFrame):
         self.grid_columnconfigure(2, weight=0) # Size
         self.grid_columnconfigure(3, weight=0) # Type
         self.grid_columnconfigure(4, weight=0) # Color
-        self.grid_columnconfigure(5, weight=0) # Price
-        self.grid_columnconfigure(6, weight=0) # Remove
+        self.grid_columnconfigure(5, weight=0) # Sides (1 mặt/2 mặt)
+        self.grid_columnconfigure(6, weight=0) # Pages per sheet (ghép)
+        self.grid_columnconfigure(7, weight=0) # Price
+        self.grid_columnconfigure(8, weight=0) # Remove
 
         # Widgets with theme-aware styling
         self.lbl_name = ctk.CTkLabel(
@@ -106,6 +108,32 @@ class FileRow(ctk.CTkFrame):
         )
         self.opt_color.grid(row=0, column=4, padx=5, pady=12)
 
+        # Sides: 1 mặt / 2 mặt
+        self.var_sides = ctk.StringVar(value="1")
+        self.opt_sides = ctk.CTkOptionMenu(
+            self, 
+            values=["1", "2"], 
+            variable=self.var_sides, 
+            width=60, 
+            command=self.on_change,
+            corner_radius=8,
+            font=("Inter", 11)
+        )
+        self.opt_sides.grid(row=0, column=5, padx=5, pady=12)
+
+        # Pages per sheet: Số trang ghép trên 1 mặt
+        self.var_pages_per_sheet = ctk.StringVar(value="1")
+        self.opt_pages_per_sheet = ctk.CTkOptionMenu(
+            self, 
+            values=["1", "2", "4", "6", "9"], 
+            variable=self.var_pages_per_sheet, 
+            width=60, 
+            command=self.on_change,
+            corner_radius=8,
+            font=("Inter", 11)
+        )
+        self.opt_pages_per_sheet.grid(row=0, column=6, padx=5, pady=12)
+
         self.lbl_price = ctk.CTkLabel(
             self, 
             text="0 VND", 
@@ -114,7 +142,7 @@ class FileRow(ctk.CTkFrame):
             font=("Inter", 13, "bold"),
             text_color=SUCCESS_GREEN
         )
-        self.lbl_price.grid(row=0, column=5, padx=10, pady=12)
+        self.lbl_price.grid(row=0, column=7, padx=10, pady=12)
 
         self.btn_remove = ctk.CTkButton(
             self, 
@@ -128,7 +156,7 @@ class FileRow(ctk.CTkFrame):
             font=("Inter", 14),
             command=self.remove
         )
-        self.btn_remove.grid(row=0, column=6, padx=5, pady=12)
+        self.btn_remove.grid(row=0, column=8, padx=5, pady=12)
 
         self.calculate_price()
 
@@ -145,10 +173,21 @@ class FileRow(ctk.CTkFrame):
         size = self.var_size.get()
         p_type = self.var_type.get()
         color = self.var_color.get()
+        sides = int(self.var_sides.get())  # 1 or 2
+        pages_per_sheet = int(self.var_pages_per_sheet.get())  # 1, 2, 4, 6, 9
 
         try:
             unit_price = self.prices[size][p_type][color]
-            total = pages * unit_price
+            
+            # Tính số mặt giấy thực tế cần in
+            # Số mặt giấy = (Số trang / pages_per_sheet) / sides
+            import math
+            sheets_needed = math.ceil(pages / pages_per_sheet)
+            if sides == 2:
+                # Nếu in 2 mặt, số mặt giấy giảm đi 1 nửa (làm tròn lên)
+                sheets_needed = math.ceil(sheets_needed / 2)
+            
+            total = sheets_needed * unit_price
             self.lbl_price.configure(text=format_currency(total))
             return total
         except KeyError:
@@ -161,10 +200,12 @@ class FileRow(ctk.CTkFrame):
         self.remove_callback(self)
         self.destroy()
 
-    def set_mode(self, size=None, p_type=None, color=None):
+    def set_mode(self, size=None, p_type=None, color=None, sides=None, pages_per_sheet=None):
         if size: self.var_size.set(size)
         if p_type: self.var_type.set(p_type)
         if color: self.var_color.set(color)
+        if sides: self.var_sides.set(sides)
+        if pages_per_sheet: self.var_pages_per_sheet.set(pages_per_sheet)
         self.calculate_price()
         self.update_callback()
 
@@ -282,6 +323,30 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         )
         self.global_color.pack(side="left", padx=4)
 
+        # Sides (1 mặt / 2 mặt)
+        self.global_sides = ctk.CTkOptionMenu(
+            dropdown_frame,
+            values=["-", "1", "2"],
+            width=60,
+            height=36,
+            corner_radius=8,
+            font=("Inter", 11),
+            command=lambda v: self.apply_global(sides=v)
+        )
+        self.global_sides.pack(side="left", padx=4)
+
+        # Pages per sheet
+        self.global_pages_per_sheet = ctk.CTkOptionMenu(
+            dropdown_frame,
+            values=["-", "1", "2", "4", "6", "9"],
+            width=60,
+            height=36,
+            corner_radius=8,
+            font=("Inter", 11),
+            command=lambda v: self.apply_global(pages_per_sheet=v)
+        )
+        self.global_pages_per_sheet.pack(side="left", padx=4)
+
         # RIGHT: Refresh button
         right_section = ctk.CTkFrame(header_content, fg_color="transparent")
         right_section.pack(side="right")
@@ -319,6 +384,64 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             border_width=0
         )
         self.scroll_frame.pack(fill="both", expand=True, padx=3, pady=3)
+
+        # === HEADER ROW: Column labels ===
+        self.header_row = ctk.CTkFrame(
+            self.scroll_frame,
+            fg_color="transparent"
+        )
+        # Pack header_row but it will be hidden initially
+        # self.header_row.pack(fill="x", padx=12, pady=(10, 5))  # Don't pack yet
+        
+        # Create header labels with the same layout as FileRow
+        header_container = ctk.CTkFrame(self.header_row, fg_color="transparent")
+        header_container.pack(fill="x", padx=12, pady=(10, 5))
+        
+        # Configure grid
+        header_container.grid_columnconfigure(0, weight=1)
+        header_container.grid_columnconfigure(1, weight=0)
+        header_container.grid_columnconfigure(2, weight=0)
+        header_container.grid_columnconfigure(3, weight=0)
+        header_container.grid_columnconfigure(4, weight=0)
+        header_container.grid_columnconfigure(5, weight=0)
+        header_container.grid_columnconfigure(6, weight=0)
+        header_container.grid_columnconfigure(7, weight=0)
+        header_container.grid_columnconfigure(8, weight=0)
+        
+        labels = [
+            ("Tên file", 0, 1, "w", None),
+            ("Trang", 1, 0, "center", 60),
+            ("Khổ", 2, 0, "center", 70),
+            ("Loại", 3, 0, "center", 80),
+            ("Màu", 4, 0, "center", 80),
+            ("Mặt", 5, 0, "center", 60),
+            ("Ghép", 6, 0, "center", 60),
+            ("Giá", 7, 0, "e", 120),
+            ("", 8, 0, "center", 32)  # Remove button column
+        ]
+        
+        for text, col, weight, anchor, width in labels:
+            if weight == 1:
+                # Tên file column - expanding
+                lbl = ctk.CTkLabel(
+                    header_container,
+                    text=text,
+                    font=("Inter", 11, "bold"),
+                    text_color=(LIGHT_TEXT_SECONDARY, TEXT_SECONDARY),
+                    anchor=anchor
+                )
+                lbl.grid(row=0, column=col, padx=10, pady=5, sticky="ew")
+            else:
+                # Fixed width columns
+                lbl = ctk.CTkLabel(
+                    header_container,
+                    text=text,
+                    font=("Inter", 11, "bold"),
+                    text_color=(LIGHT_TEXT_SECONDARY, TEXT_SECONDARY),
+                    anchor=anchor,
+                    width=width
+                )
+                lbl.grid(row=0, column=col, padx=5, pady=5)
 
         # === DROP ZONE: Background with colored border ===
         self.drop_zone = ctk.CTkFrame(
@@ -462,6 +585,8 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.global_size.set("-")
         self.global_type.set("-")
         self.global_color.set("-")
+        self.global_sides.set("-")
+        self.global_pages_per_sheet.set("-")
 
     def clear_all_files(self):
         """Remove all files from the list"""
@@ -469,6 +594,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             if row.master:
                 row.master.destroy()
         self.files.clear()
+        # Hide header row
+        if hasattr(self, 'header_row'):
+            self.header_row.pack_forget()
         # Show drop zone again
         if hasattr(self, 'drop_zone'):
             self.drop_zone.pack(fill="both", expand=True, padx=20, pady=20)
@@ -483,6 +611,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Hide drop zone if files exist
         if file_paths and hasattr(self, 'drop_zone'):
             self.drop_zone.pack_forget()
+            # Show header row
+            if hasattr(self, 'header_row'):
+                self.header_row.pack(fill="x", padx=0, pady=(0, 0), before=self.scroll_frame.winfo_children()[0] if self.files else None)
         
         for path in file_paths:
             # Remove curly braces from Windows paths
@@ -513,20 +644,27 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             # Remove the parent card frame
             row_obj.master.destroy()
         # Show drop zone if no files left
-        if not self.files and hasattr(self, 'drop_zone'):
-            self.drop_zone.pack(fill="both", expand=True, padx=20, pady=20)
+        if not self.files:
+            # Hide header row
+            if hasattr(self, 'header_row'):
+                self.header_row.pack_forget()
+            # Show drop zone
+            if hasattr(self, 'drop_zone'):
+                self.drop_zone.pack(fill="both", expand=True, padx=20, pady=20)
         self.update_total()
         if not self.files and hasattr(self, 'drop_label'):
             self.drop_label.pack(pady=80)
         self.update_total()
 
-    def apply_global(self, size=None, p_type=None, color=None):
+    def apply_global(self, size=None, p_type=None, color=None, sides=None, pages_per_sheet=None):
         for row in self.files:
             # Only apply if not "-"
-            s = size if size != "-" else None
-            t = p_type if p_type != "-" else None
-            c = color if color != "-" else None
-            row.set_mode(s, t, c)
+            s = size if size and size != "-" else None
+            t = p_type if p_type and p_type != "-" else None
+            c = color if color and color != "-" else None
+            sd = sides if sides and sides != "-" else None
+            pps = pages_per_sheet if pages_per_sheet and pages_per_sheet != "-" else None
+            row.set_mode(s, t, c, sd, pps)
         self.update_total()
 
     def update_total(self):
