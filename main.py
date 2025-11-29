@@ -3,6 +3,9 @@ from tkinter import filedialog
 from tkinterdnd2 import DND_FILES, TkinterDnD
 import json
 import os
+import time
+from datetime import datetime
+from pathlib import Path
 from utils import get_page_count, format_currency
 
 ctk.set_appearance_mode("Dark")
@@ -271,6 +274,11 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.load_config()
         self.files = []
+        
+        # Folder watching - support multiple folders
+        self.watch_folders = {}  # {folder_path: set_of_watched_files}
+        self.last_file_time = None  # Track time of last file added
+        self.customer_timeout = 60  # Default 60 seconds
 
         # Enable drag and drop on main window
         self.drop_target_register(DND_FILES)
@@ -395,9 +403,26 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         )
         self.global_pages_per_sheet.pack(side="left", padx=4)
 
-        # RIGHT: Refresh button
+        # RIGHT: Watch folder and Refresh buttons
         right_section = ctk.CTkFrame(header_content, fg_color="transparent")
         right_section.pack(side="right")
+        
+        self.btn_watch_folder = ctk.CTkButton(
+            right_section,
+            text="📁 Watch Folder",
+            width=140,
+            height=36,
+            corner_radius=8,
+            font=("Inter", 12, "bold"),
+            fg_color=(BLUE_PRIMARY, BLUE_PRIMARY),
+            hover_color=(BLUE_HOVER, BLUE_HOVER),
+            text_color="#FFFFFF",
+            command=self.toggle_watch_folder
+        )
+        self.btn_watch_folder.pack(side="left", padx=4)
+        
+        # Bind right-click to show manage dialog
+        self.btn_watch_folder.bind("<Button-3>", self.show_watch_folders_dialog)
 
         self.btn_reset_global = ctk.CTkButton(
             right_section,
@@ -413,7 +438,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             border_color=(LIGHT_BORDER, BORDER_COLOR),
             command=self.reset_global
         )
-        self.btn_reset_global.pack()
+        self.btn_reset_global.pack(side="left")
 
         # === MAIN CONTENT: Large central container ===
         content_frame = ctk.CTkFrame(
@@ -613,6 +638,23 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 data = json.load(f)
                 self.prices = data["prices"]
                 self.defaults = data.get("defaults", {})
+                
+                # Load watch folders and auto-start watching
+                watch_folder_list = data.get("watch_folders", [])
+                self.customer_timeout = data.get("customer_timeout_seconds", 60)
+                
+                # Start watching configured folders
+                for folder in watch_folder_list:
+                    if os.path.isdir(folder):
+                        self.add_watch_folder(folder)
+                        print(f"Auto-watching folder: {folder}")
+                    else:
+                        print(f"Folder not found, skipping: {folder}")
+                
+                # Start the check loop if any folders are being watched
+                if self.watch_folders:
+                    self.check_new_files()
+                    
         except Exception as e:
             print(f"Error loading config: {e}")
             self.prices = {}
@@ -720,6 +762,178 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Làm tròn lên đến hàng nghìn
         total = int(math.ceil(total / 1000) * 1000)
         self.lbl_total.configure(text=format_currency(total))
+    
+    def add_watch_folder(self, folder):
+        """Add a folder to watch list"""
+        if folder not in self.watch_folders and os.path.isdir(folder):
+            self.watch_folders[folder] = set(os.listdir(folder))
+            self.update_watch_button_text()
+            return True
+        return False
+    
+    def remove_watch_folder(self, folder):
+        """Remove a folder from watch list"""
+        if folder in self.watch_folders:
+            del self.watch_folders[folder]
+            self.update_watch_button_text()
+            return True
+        return False
+    
+    def update_watch_button_text(self):
+        """Update button text based on number of folders being watched"""
+        count = len(self.watch_folders)
+        if count == 0:
+            self.btn_watch_folder.configure(
+                text="📁 Watch Folder", 
+                fg_color=(BLUE_PRIMARY, BLUE_PRIMARY)
+            )
+        else:
+            self.btn_watch_folder.configure(
+                text=f"👁 Watching ({count})", 
+                fg_color=(SUCCESS_GREEN, SUCCESS_GREEN)
+            )
+    
+    def toggle_watch_folder(self):
+        """Add a new folder to watch"""
+        folder = filedialog.askdirectory(title="Chọn folder để theo dõi")
+        if folder:
+            if folder in self.watch_folders:
+                # Already watching
+                print(f"Already watching: {folder}")
+            else:
+                # Add new folder
+                if self.add_watch_folder(folder):
+                    print(f"Started watching: {folder}")
+                    # Start check loop if this is the first folder
+                    if len(self.watch_folders) == 1:
+                        self.check_new_files()
+    
+    def show_watch_folders_dialog(self, event=None):
+        """Show dialog to manage watched folders (right-click on Watch Folder button)"""
+        if not self.watch_folders:
+            print("No folders being watched")
+            return
+        
+        # Create a simple top-level window
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Manage Watch Folders")
+        dialog.geometry("500x400")
+        dialog.transient(self)
+        dialog.grab_set()
+        
+        # Title
+        ctk.CTkLabel(
+            dialog,
+            text="Watched Folders",
+            font=("Inter", 16, "bold")
+        ).pack(pady=10)
+        
+        # Scrollable frame for folder list
+        scroll_frame = ctk.CTkScrollableFrame(dialog, width=460, height=280)
+        scroll_frame.pack(padx=20, pady=10, fill="both", expand=True)
+        
+        # List each folder with remove button
+        for folder in list(self.watch_folders.keys()):
+            folder_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
+            folder_frame.pack(fill="x", pady=5)
+            
+            ctk.CTkLabel(
+                folder_frame,
+                text=folder,
+                anchor="w",
+                font=("Inter", 11)
+            ).pack(side="left", fill="x", expand=True, padx=5)
+            
+            ctk.CTkButton(
+                folder_frame,
+                text="✕ Remove",
+                width=80,
+                height=28,
+                fg_color="transparent",
+                hover_color="#ef4444",
+                border_width=1,
+                border_color="#ef4444",
+                text_color="#ef4444",
+                command=lambda f=folder: [self.remove_watch_folder(f), dialog.destroy(), self.show_watch_folders_dialog()]
+            ).pack(side="right", padx=5)
+        
+        # Bottom buttons
+        button_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        button_frame.pack(pady=10)
+        
+        ctk.CTkButton(
+            button_frame,
+            text="Clear All",
+            width=100,
+            fg_color="#ef4444",
+            hover_color="#dc2626",
+            command=lambda: [self.clear_all_watches(), dialog.destroy()]
+        ).pack(side="left", padx=5)
+        
+        ctk.CTkButton(
+            button_frame,
+            text="Close",
+            width=100,
+            command=dialog.destroy
+        ).pack(side="left", padx=5)
+    
+    def clear_all_watches(self):
+        """Stop watching all folders"""
+        self.watch_folders.clear()
+        self.update_watch_button_text()
+        print("Stopped watching all folders")
+    
+    def check_new_files(self):
+        """Check all watched folders for new files"""
+        if not self.watch_folders:
+            return
+        
+        try:
+            current_time = time.time()
+            has_new_files = False
+            
+            # Check each watched folder
+            for folder, watched_files in list(self.watch_folders.items()):
+                if not os.path.isdir(folder):
+                    print(f"Folder no longer exists: {folder}")
+                    self.remove_watch_folder(folder)
+                    continue
+                
+                try:
+                    current_files = set(os.listdir(folder))
+                    new_files = current_files - watched_files
+                    
+                    if new_files:
+                        # Check if this is a new customer (more than timeout since last file)
+                        if self.last_file_time and (current_time - self.last_file_time) > self.customer_timeout:
+                            # New customer - clear previous files
+                            print(f"New customer detected (>{self.customer_timeout}s gap)")
+                            self.clear_all_files()
+                        
+                        # Add new files
+                        for filename in sorted(new_files):
+                            filepath = os.path.join(folder, filename)
+                            if os.path.isfile(filepath):
+                                # Check if it's a supported file type
+                                ext = os.path.splitext(filename)[1].lower()
+                                if ext in ['.pdf', '.docx', '.pptx', '.xlsx', '.xls', '.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tiff']:
+                                    print(f"New file detected in {os.path.basename(folder)}: {filename}")
+                                    self.add_files_from_paths([filepath])
+                                    watched_files.add(filename)
+                                    self.last_file_time = current_time
+                                    has_new_files = True
+                    
+                    # Update the watched files set
+                    self.watch_folders[folder] = watched_files
+                    
+                except Exception as e:
+                    print(f"Error checking folder {folder}: {e}")
+            
+        except Exception as e:
+            print(f"Error in check_new_files: {e}")
+        
+        # Schedule next check (every 2 seconds)
+        self.after(2000, self.check_new_files)
 
 if __name__ == "__main__":
     app = App()
