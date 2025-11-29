@@ -90,8 +90,7 @@
     }
   },
   "watch_folders": [
-    "C:\\Users\\YourUsername\\Downloads",
-    "C:\\Users\\YourUsername\\Desktop"
+    "C:\\Users\\PCKIEN\\Downloads"
   ],
   "customer_timeout_seconds": 60,
   "note": "Giá tính theo tờ. Key '1' = in 1 mặt, key '2' = in 2 mặt. Defaults áp dụng theo loại file. watch_folders: danh sách folder tự động theo dõi khi khởi động. customer_timeout_seconds: số giây để phân biệt khách hàng mới."

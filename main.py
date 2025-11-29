@@ -212,24 +212,28 @@ class FileRow(ctk.CTkFrame):
             # Ví dụ: 32 trang, ghép 2 → cần 16 mặt để in
             faces_to_print = math.ceil(pages / pages_per_sheet/2)
             
- 
+            # Bước 2: Chuyển từ số mặt → số tờ giấy
             sheets_physical = math.ceil(faces_to_print / 2)
             
             # Bước 3: Áp dụng chế độ in (1 mặt hay 2 mặt)
             if sides == 1:
                 # In 1 mặt: chỉ dùng 1 mặt của tờ giấy
-                # → Cần gấp đôi số tờ (vì mặt sau bỏ trống)
-                sheets_needed = sheets_physical*2  # Mỗi mặt cần 1 tờ
+                sheets_needed = faces_to_print
             else:  # sides == 2
                 # In 2 mặt: dùng cả 2 mặt của tờ giấy
                 sheets_needed = sheets_physical
             
             # Bước 4: Tính giá (GIÁ TRONG CONFIG = GIÁ/TỜ)
+            # Debug: check if prices loaded
+            if not self.prices:
+                print("ERROR: Prices not loaded!")
+                self.lbl_price.configure(text="0 VND")
+                return 0
+            
             price_per_sheet = self.prices[size][p_type][color][sides_str]
             
             # Bước 5: Tổng tiền = SỐ TỜ × GIÁ/TỜ
             subtotal = sheets_needed * price_per_sheet
-            print(sheets_needed)
             
             # Bước 6: Làm tròn lên hàng nghìn
             total = int(math.ceil(subtotal / 1000) * 1000)
@@ -241,6 +245,9 @@ class FileRow(ctk.CTkFrame):
         except (KeyError, ValueError) as e:
             print(f"Error calculating price: {e}")
             print(f"size={size}, p_type={p_type}, color={color}, sides={sides_str}")
+            print(f"prices structure: {list(self.prices.keys()) if self.prices else 'EMPTY'}")
+            if self.prices and size in self.prices:
+                print(f"Available for {size}: {list(self.prices[size].keys())}")
             self.lbl_price.configure(text="0 VND")
             return 0
 
@@ -261,6 +268,164 @@ class FileRow(ctk.CTkFrame):
         self.update_callback()
 
 
+class MiniWidget(ctk.CTkToplevel):
+    """Mini always-on-top widget showing summary"""
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.parent = parent
+        
+        # Window configuration
+        self.title("AutoCashier Mini")
+        self.geometry("220x160")
+        self.attributes("-topmost", True)
+        
+        # Position at top-right corner
+        screen_width = self.winfo_screenwidth()
+        x_position = screen_width - 240
+        self.geometry(f"220x160+{x_position}+20")
+        
+        # Configure appearance
+        self.configure(fg_color=(LIGHT_CARD, CONTAINER_BG))
+        
+        # Main container
+        main_frame = ctk.CTkFrame(self, fg_color="transparent")
+        main_frame.pack(fill="both", expand=True, padx=12, pady=12)
+        
+        # Title with restore button
+        title_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        title_frame.pack(fill="x", pady=(0, 10))
+        
+        ctk.CTkLabel(
+            title_frame,
+            text="📊",
+            font=("Inter", 16),
+            text_color=(LIGHT_TEXT, TEXT_PRIMARY)
+        ).pack(side="left")
+        
+        ctk.CTkButton(
+            title_frame,
+            text="▲",
+            width=28,
+            height=28,
+            corner_radius=6,
+            font=("Inter", 12, "bold"),
+            fg_color=(BLUE_PRIMARY, BLUE_PRIMARY),
+            hover_color=(BLUE_HOVER, BLUE_HOVER),
+            command=self.restore_main_window
+        ).pack(side="right")
+        
+        # Total price - LARGE
+        self.lbl_total = ctk.CTkLabel(
+            main_frame,
+            text="0 VND",
+            font=("Inter", 28, "bold"),
+            text_color=SUCCESS_GREEN,
+            anchor="center"
+        )
+        self.lbl_total.pack(fill="x", pady=(5, 15))
+        
+        # Stats in one line
+        stats_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        stats_frame.pack(fill="x")
+        
+        self.lbl_files = ctk.CTkLabel(
+            stats_frame,
+            text="0",
+            font=("Inter", 10),
+            text_color=(LIGHT_TEXT_SECONDARY, TEXT_SECONDARY),
+            anchor="center"
+        )
+        self.lbl_files.pack(side="left", expand=True, fill="x")
+        
+        ctk.CTkLabel(
+            stats_frame,
+            text="|",
+            font=("Inter", 10),
+            text_color=(LIGHT_BORDER, BORDER_COLOR)
+        ).pack(side="left", padx=3)
+        
+        self.lbl_pages = ctk.CTkLabel(
+            stats_frame,
+            text="0p",
+            font=("Inter", 10),
+            text_color=(LIGHT_TEXT_SECONDARY, TEXT_SECONDARY),
+            anchor="center"
+        )
+        self.lbl_pages.pack(side="left", expand=True, fill="x")
+        
+        ctk.CTkLabel(
+            stats_frame,
+            text="|",
+            font=("Inter", 10),
+            text_color=(LIGHT_BORDER, BORDER_COLOR)
+        ).pack(side="left", padx=3)
+        
+        self.lbl_sheets = ctk.CTkLabel(
+            stats_frame,
+            text="0s",
+            font=("Inter", 10),
+            text_color=(LIGHT_TEXT_SECONDARY, TEXT_SECONDARY),
+            anchor="center"
+        )
+        self.lbl_sheets.pack(side="left", expand=True, fill="x")
+        
+        # Handle window close
+        self.protocol("WM_DELETE_WINDOW", self.restore_main_window)
+        
+        # Start updating
+        self.update_stats()
+    
+    def update_stats(self):
+        """Update stats from parent app"""
+        if not self.parent.files:
+            self.lbl_files.configure(text="0")
+            self.lbl_pages.configure(text="0p")
+            self.lbl_sheets.configure(text="0s")
+            self.lbl_total.configure(text="0 VND")
+        else:
+            import math
+            
+            # Count files
+            file_count = len(self.parent.files)
+            
+            # Count total pages
+            total_pages = sum(int(f.entry_pages.get()) for f in self.parent.files if f.entry_pages.get().isdigit())
+            
+            # Count total sheets (estimate)
+            total_sheets = 0
+            for f in self.parent.files:
+                try:
+                    pages = int(f.entry_pages.get())
+                    pages_per_sheet = int(f.var_pages_per_sheet.get())
+                    sides = int(f.var_sides.get())
+                    
+                    faces = math.ceil(pages / pages_per_sheet)
+                    if sides == 1:
+                        sheets = faces
+                    else:
+                        sheets = math.ceil(faces / 2)
+                    total_sheets += sheets
+                except:
+                    pass
+            
+            # Get total price
+            total_price = sum(f.get_total() for f in self.parent.files)
+            total_price = int(math.ceil(total_price / 1000) * 1000)
+            
+            self.lbl_files.configure(text=f"{file_count}")
+            self.lbl_pages.configure(text=f"{total_pages}p")
+            self.lbl_sheets.configure(text=f"{total_sheets}s")
+            self.lbl_total.configure(text=format_currency(total_price))
+        
+        # Schedule next update
+        self.after(500, self.update_stats)
+    
+    def restore_main_window(self):
+        """Restore main window and close mini widget"""
+        self.parent.deiconify()
+        self.destroy()
+
+
 class App(ctk.CTk, TkinterDnD.DnDWrapper):
     def __init__(self):
         super().__init__()
@@ -272,13 +437,15 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Configure background - will change based on theme
         self.configure(fg_color=(LIGHT_BG, GLOBAL_BG))
 
-        self.load_config()
+        # Initialize attributes BEFORE load_config
         self.files = []
-        
-        # Folder watching - support multiple folders
+        self.mini_widget = None
         self.watch_folders = {}  # {folder_path: set_of_watched_files}
         self.last_file_time = None  # Track time of last file added
         self.customer_timeout = 60  # Default 60 seconds
+        
+        # Load config (may modify watch_folders)
+        self.load_config()
 
         # Enable drag and drop on main window
         self.drop_target_register(DND_FILES)
@@ -312,6 +479,23 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             font=("Inter", 20, "bold"),
             text_color=(LIGHT_TEXT, TEXT_PRIMARY)
         ).pack(side="left", padx=(0, 20))
+
+        # Minimize to mini widget button
+        self.btn_minimize = ctk.CTkButton(
+            left_section,
+            text="▼",
+            width=36,
+            height=36,
+            corner_radius=8,
+            font=("Inter", 14, "bold"),
+            fg_color="transparent",
+            hover_color=(LIGHT_ACCENT, DROPZONE_BG),
+            text_color=(LIGHT_TEXT_SECONDARY, TEXT_SECONDARY),
+            border_width=1,
+            border_color=(LIGHT_BORDER, BORDER_COLOR),
+            command=self.minimize_to_widget
+        )
+        self.btn_minimize.pack(side="left", padx=4)
 
         # Theme toggle
         self.theme_var = ctk.StringVar(value="Dark")
@@ -631,6 +815,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             text_color=SUCCESS_GREEN
         )
         self.lbl_total.pack(anchor="e")
+        
+        # Initialize watch folders after UI is complete
+        self.init_watch_folders()
 
     def load_config(self):
         try:
@@ -639,26 +826,28 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 self.prices = data["prices"]
                 self.defaults = data.get("defaults", {})
                 
-                # Load watch folders and auto-start watching
-                watch_folder_list = data.get("watch_folders", [])
+                # Store watch folder list for later initialization
+                self.config_watch_folders = data.get("watch_folders", [])
                 self.customer_timeout = data.get("customer_timeout_seconds", 60)
-                
-                # Start watching configured folders
-                for folder in watch_folder_list:
-                    if os.path.isdir(folder):
-                        self.add_watch_folder(folder)
-                        print(f"Auto-watching folder: {folder}")
-                    else:
-                        print(f"Folder not found, skipping: {folder}")
-                
-                # Start the check loop if any folders are being watched
-                if self.watch_folders:
-                    self.check_new_files()
                     
         except Exception as e:
             print(f"Error loading config: {e}")
             self.prices = {}
             self.defaults = {}
+            self.config_watch_folders = []
+    
+    def init_watch_folders(self):
+        """Initialize watch folders from config - call after UI is ready"""
+        for folder in self.config_watch_folders:
+            if os.path.isdir(folder):
+                self.add_watch_folder(folder)
+                print(f"Auto-watching folder: {folder}")
+            else:
+                print(f"Folder not found, skipping: {folder}")
+        
+        # Start the check loop if any folders are being watched
+        if self.watch_folders:
+            self.check_new_files()
 
     def toggle_theme(self):
         if self.theme_var.get() == "Dark":
@@ -882,6 +1071,12 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.watch_folders.clear()
         self.update_watch_button_text()
         print("Stopped watching all folders")
+    
+    def minimize_to_widget(self):
+        """Minimize main window and show mini widget"""
+        if self.mini_widget is None or not self.mini_widget.winfo_exists():
+            self.mini_widget = MiniWidget(self)
+        self.withdraw()  # Hide main window
     
     def check_new_files(self):
         """Check all watched folders for new files"""
