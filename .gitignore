@@ -1,10 +1,43 @@
-/__pycache__/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
 *.pyc
+*.so
+.Python
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
 .env
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# IDE
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
 logs/
 *.log
+
+# Data folders
 data/
 output/
 models/
+
+# User backups
+config_backup.json
