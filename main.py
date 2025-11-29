@@ -33,13 +33,32 @@ PRIMARY_COLOR = "#667EEA"  # Gradient blue-purple for light mode
 PRIMARY_HOVER = "#5568D3"
 
 class FileRow(ctk.CTkFrame):
-    def __init__(self, master, file_path, prices, update_callback, remove_callback):
+    def __init__(self, master, file_path, prices, update_callback, remove_callback, defaults=None):
         super().__init__(master, corner_radius=12, fg_color="transparent")
         self.file_path = file_path
         self.prices = prices
         self.update_callback = update_callback
         self.remove_callback = remove_callback
         self.filename = os.path.basename(file_path)
+        
+        # Determine default values based on file extension
+        ext = os.path.splitext(file_path)[1].lower().lstrip('.')
+        if defaults:
+            # Map extensions to config keys
+            if ext == 'pdf':
+                file_defaults = defaults.get('pdf', defaults.get('default', {}))
+            elif ext == 'docx':
+                file_defaults = defaults.get('docx', defaults.get('default', {}))
+            elif ext in ['pptx', 'ppt']:
+                file_defaults = defaults.get('pptx', defaults.get('default', {}))
+            elif ext in ['xlsx', 'xls']:
+                file_defaults = defaults.get('xlsx', defaults.get('default', {}))
+            elif ext in ['jpg', 'jpeg', 'png', 'bmp', 'gif', 'tiff', 'tif']:
+                file_defaults = defaults.get('image', defaults.get('default', {}))
+            else:
+                file_defaults = defaults.get('default', {})
+        else:
+            file_defaults = {}
         
         # Layout
         self.grid_columnconfigure(0, weight=1) # Filename
@@ -72,7 +91,7 @@ class FileRow(ctk.CTkFrame):
         self.entry_pages.grid(row=0, column=1, padx=5, pady=12)
         self.entry_pages.bind("<KeyRelease>", self.on_change)
 
-        self.var_size = ctk.StringVar(value="A4")
+        self.var_size = ctk.StringVar(value=file_defaults.get('size', 'A4'))
         self.opt_size = ctk.CTkOptionMenu(
             self, 
             values=["A4", "A3"], 
@@ -84,7 +103,7 @@ class FileRow(ctk.CTkFrame):
         )
         self.opt_size.grid(row=0, column=2, padx=5, pady=12)
 
-        self.var_type = ctk.StringVar(value="soft")
+        self.var_type = ctk.StringVar(value=file_defaults.get('type', 'soft'))
         self.opt_type = ctk.CTkOptionMenu(
             self, 
             values=["soft", "hard"], 
@@ -96,7 +115,7 @@ class FileRow(ctk.CTkFrame):
         )
         self.opt_type.grid(row=0, column=3, padx=5, pady=12)
 
-        self.var_color = ctk.StringVar(value="bw")
+        self.var_color = ctk.StringVar(value=file_defaults.get('color', 'bw'))
         self.opt_color = ctk.CTkOptionMenu(
             self, 
             values=["bw", "color"], 
@@ -109,7 +128,7 @@ class FileRow(ctk.CTkFrame):
         self.opt_color.grid(row=0, column=4, padx=5, pady=12)
 
         # Sides: 1 mặt / 2 mặt
-        self.var_sides = ctk.StringVar(value="1")
+        self.var_sides = ctk.StringVar(value=file_defaults.get('sides', '1'))
         self.opt_sides = ctk.CTkOptionMenu(
             self, 
             values=["1", "2"], 
@@ -122,7 +141,7 @@ class FileRow(ctk.CTkFrame):
         self.opt_sides.grid(row=0, column=5, padx=5, pady=12)
 
         # Pages per sheet: Số trang ghép trên 1 mặt
-        self.var_pages_per_sheet = ctk.StringVar(value="1")
+        self.var_pages_per_sheet = ctk.StringVar(value=file_defaults.get('pages_per_sheet', '1'))
         self.opt_pages_per_sheet = ctk.CTkOptionMenu(
             self, 
             values=["1", "2", "4", "6", "9"], 
@@ -593,9 +612,11 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             with open("config.json", "r", encoding="utf-8") as f:
                 data = json.load(f)
                 self.prices = data["prices"]
+                self.defaults = data.get("defaults", {})
         except Exception as e:
             print(f"Error loading config: {e}")
-            self.prices = {} # Should handle better, but for now empty
+            self.prices = {}
+            self.defaults = {}
 
     def toggle_theme(self):
         if self.theme_var.get() == "Dark":
@@ -658,7 +679,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 )
                 card.pack(fill="x", padx=12, pady=6)
                 
-                row = FileRow(card, path, self.prices, self.update_total, self.remove_file)
+                row = FileRow(card, path, self.prices, self.update_total, self.remove_file, self.defaults)
                 row.pack(fill="x", padx=10, pady=10)
                 self.files.append(row)
         self.update_total()

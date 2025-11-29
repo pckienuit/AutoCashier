@@ -45,5 +45,49 @@
       }
     }
   },
-  "note": "Giá tính theo tờ. Key '1' = in 1 mặt, key '2' = in 2 mặt. Dễ dàng chỉnh sửa giá sau này."
+  "defaults": {
+    "pdf": {
+      "size": "A4",
+      "type": "soft",
+      "color": "bw",
+      "sides": "1",
+      "pages_per_sheet": "1"
+    },
+    "docx": {
+      "size": "A4",
+      "type": "soft",
+      "color": "bw",
+      "sides": "1",
+      "pages_per_sheet": "1"
+    },
+    "pptx": {
+      "size": "A4",
+      "type": "soft",
+      "color": "bw",
+      "sides": "1",
+      "pages_per_sheet": "4"
+    },
+    "xlsx": {
+      "size": "A4",
+      "type": "soft",
+      "color": "bw",
+      "sides": "1",
+      "pages_per_sheet": "1"
+    },
+    "image": {
+      "size": "A4",
+      "type": "soft",
+      "color": "color",
+      "sides": "1",
+      "pages_per_sheet": "1"
+    },
+    "default": {
+      "size": "A4",
+      "type": "soft",
+      "color": "bw",
+      "sides": "1",
+      "pages_per_sheet": "1"
+    }
+  },
+  "note": "Giá tính theo tờ. Key '1' = in 1 mặt, key '2' = in 2 mặt. Defaults áp dụng theo loại file."
 }
