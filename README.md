@@ -336,6 +336,37 @@ Giá cuối = ⌈3.600 / 1.000⌉ × 1.000 = 4.000đ ← Làm tròn lên
 pip install -r requirements.txt
 ```
 
+### Headless environments (Linux servers, CI, containers)
+
+If you see errors about missing display or X11 libraries, you're running in a headless environment. The app requires a virtual X server.
+
+**Required system packages:**
+
+```bash
+sudo apt-get update
+sudo apt-get install -y xvfb libxcursor1 libxi6 libxfixes3 \
+    libx11-xcb1 libxcb1 libxrandr2 libxrender1 libxext6 libxft2
+```
+
+**Option 1: Run with `xvfb-run` (recommended):**
+
+```bash
+xvfb-run -s "-screen 0 1280x800x24" python main.py
+```
+
+**Option 2: Automatic virtual display (Python-managed):**
+
+```bash
+pip install pyvirtualdisplay
+python main.py
+```
+
+The code will attempt to start a virtual display automatically if `pyvirtualdisplay` is installed and `$DISPLAY` is not set.
+
+**Common errors:**
+- `TclError: no display name and no $DISPLAY` → Install `xvfb`
+- `libXcursor.so.1: cannot open shared object file` → Install X11 libraries (see above)
+
 ---
 
 **Lỗi:** `UnicodeDecodeError` khi load config

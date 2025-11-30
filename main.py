@@ -1,3 +1,22 @@
+import os
+
+# If running in a headless environment (no $DISPLAY), try to start
+# a virtual X server so Tkinter/customtkinter can create windows.
+# This uses `pyvirtualdisplay` (which wraps Xvfb). If it fails,
+# we print a helpful warning and allow users to run with `xvfb-run`.
+if "DISPLAY" not in os.environ:
+    try:
+        from pyvirtualdisplay import Display
+
+        display = Display(visible=0, size=(1280, 800))
+        display.start()
+        print("Started virtual display via pyvirtualdisplay (Xvfb).")
+    except Exception as _e:
+        print(
+            "Warning: no $DISPLAY and could not start a virtual display."
+            " Run with `xvfb-run python main.py` or install Xvfb/pyvirtualdisplay."
+        )
+
 import customtkinter as ctk
 from tkinter import filedialog
 from tkinterdnd2 import DND_FILES, TkinterDnD
