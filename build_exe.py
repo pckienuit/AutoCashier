@@ -29,6 +29,21 @@ def print_header():
     print("  AutoCashier - Build Executable")
     print("  Hỗ trợ: PyQt5 (Win7+) và CustomTkinter (Win10+)")
     print("=" * 70)
+    
+    # Warning for cross-platform builds
+    if sys.platform != 'win32':
+        print()
+        print("⚠️  CẢNH BÁO: Đang build trên Linux/macOS")
+        print("   PyInstaller KHÔNG hỗ trợ cross-compile!")
+        print("   File .exe build từ Linux SẼ KHÔNG chạy được trên Windows.")
+        print()
+        print("   Để tạo file .exe thật cho Windows:")
+        print("   1. Build trên máy Windows")
+        print("   2. Dùng Wine (xem BUILD_FOR_WINDOWS.md)")
+        print("   3. Dùng GitHub Actions CI/CD")
+        print()
+        input("   Nhấn Enter để tiếp tục build (chỉ để test)...")
+    
     print()
 
 def clean_build_folders():
@@ -212,9 +227,22 @@ def show_completion():
     
     if sys.platform != 'win32':
         print()
-        print("⚠️  Lưu ý: Đang build trên Linux/macOS")
-        print("   File .exe sẽ chỉ chạy được trên Windows.")
-        print("   Để build cho Linux/macOS, chạy script trên hệ điều hành tương ứng.")
+        print("=" * 70)
+        print("⚠️  CẢNH BÁO QUAN TRỌNG")
+        print("=" * 70)
+        print()
+        print("File .exe vừa build từ Linux/macOS KHÔNG phải Windows executable!")
+        print("Đây chỉ là Linux binary với tên .exe, SẼ KHÔNG chạy trên Windows.")
+        print()
+        print("Để build cho Windows:")
+        print("  1. Copy source code sang máy Windows và build")
+        print("  2. Dùng Wine để build (xem BUILD_FOR_WINDOWS.md)")
+        print("  3. Dùng GitHub Actions (xem BUILD_FOR_WINDOWS.md)")
+        print()
+        print("Kiểm tra file type:")
+        print("  file dist/*.exe")
+        print("  → Linux: 'ELF 64-bit LSB executable' (SAI)")
+        print("  → Windows: 'PE32+ executable' (ĐÚNG)")
     
     print()
 
