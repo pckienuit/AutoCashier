@@ -1,0 +1,97 @@
+{
+  "prices": {
+    "A4": {
+      "soft": {
+        "bw": {
+          "1": 300,
+          "2": 300
+        },
+        "color": {
+          "1": 2000,
+          "2": 3000
+        }
+      },
+      "hard": {
+        "bw": {
+          "1": 1000,
+          "2": 1000
+        },
+        "color": {
+          "1": 2000,
+          "2": 3000
+        }
+      }
+    },
+    "A3": {
+      "soft": {
+        "bw": {
+          "1": 1000,
+          "2": 1000
+        },
+        "color": {
+          "1": 4000,
+          "2": 5000
+        }
+      },
+      "hard": {
+        "bw": {
+          "1": 2000,
+          "2": 2000
+        },
+        "color": {
+          "1": 4000,
+          "2": 5000
+        }
+      }
+    }
+  },
+  "defaults": {
+    "pdf": {
+      "size": "A4",
+      "type": "soft",
+      "color": "bw",
+      "sides": "1",
+      "pages_per_sheet": "1"
+    },
+    "docx": {
+      "size": "A4",
+      "type": "soft",
+      "color": "bw",
+      "sides": "1",
+      "pages_per_sheet": "1"
+    },
+    "pptx": {
+      "size": "A4",
+      "type": "soft",
+      "color": "bw",
+      "sides": "1",
+      "pages_per_sheet": "4"
+    },
+    "xlsx": {
+      "size": "A4",
+      "type": "soft",
+      "color": "bw",
+      "sides": "1",
+      "pages_per_sheet": "1"
+    },
+    "image": {
+      "size": "A4",
+      "type": "soft",
+      "color": "color",
+      "sides": "1",
+      "pages_per_sheet": "1"
+    },
+    "default": {
+      "size": "A4",
+      "type": "soft",
+      "color": "bw",
+      "sides": "1",
+      "pages_per_sheet": "1"
+    }
+  },
+  "watch_folders": [
+    "C:\\Users\\PCKIEN\\Downloads"
+  ],
+  "customer_timeout_seconds": 60,
+  "note": "Giá tính theo tờ. Key '1' = in 1 mặt, key '2' = in 2 mặt. Defaults áp dụng theo loại file. watch_folders: danh sách folder tự động theo dõi khi khởi động. customer_timeout_seconds: số giây để phân biệt khách hàng mới."
+}

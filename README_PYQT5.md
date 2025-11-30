@@ -245,15 +245,42 @@ pip install pyinstaller==5.13.2
 ### Linux
 
 #### Lỗi: "Qt platform plugin could not be initialized"
+Cài đầy đủ thư viện X11:
 ```bash
-sudo apt-get install libxcb-xinerama0 libxcb-cursor0
+sudo apt-get install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 \
+    libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 \
+    libxcb-xfixes0 libxcb-shape0 libxcb-cursor0
 ```
 
-#### Headless environment (Server)
+#### Headless environment (Server/Codespaces)
 PyQt5 cần X server. Dùng Xvfb:
 ```bash
+# Cài Xvfb
 sudo apt-get install xvfb
+
+# Khởi động Xvfb
+Xvfb :99 -screen 0 1280x800x24 -ac &
+
+# Chạy app
+DISPLAY=:99 python main_pyqt5.py
+
+# Hoặc dùng xvfb-run (tự động)
 xvfb-run python main_pyqt5.py
+```
+
+**Để xem GUI từ browser (noVNC):**
+```bash
+# Cài noVNC stack
+sudo apt-get install -y x11vnc websockify
+git clone --depth 1 https://github.com/novnc/noVNC.git /tmp/noVNC
+
+# Khởi động VNC server
+DISPLAY=:99 x11vnc -forever -shared -rfbport 5900 &
+
+# Khởi động noVNC
+cd /tmp/noVNC && ./utils/novnc_proxy --vnc localhost:5900 --listen 6080 &
+
+# Mở browser tại: http://localhost:6080/vnc.html
 ```
 
 ## 🔄 Chuyển đổi giữa 2 phiên bản

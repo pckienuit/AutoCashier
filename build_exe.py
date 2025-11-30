@@ -17,6 +17,12 @@ import shutil
 import argparse
 from pathlib import Path
 
+# Determine separator for --add-data based on OS
+if sys.platform == 'win32':
+    DATA_SEP = ';'
+else:
+    DATA_SEP = ':'
+
 def print_header():
     """In header"""
     print("=" * 70)
@@ -45,59 +51,10 @@ def clean_build_folders():
     
     print()
 
-def build_executable():
-    """Build file exe bằng PyInstaller"""
-    print("[2/4] Build file executable...")
-    print("   (Quá trình này có thể mất vài phút)")
-    print()
-    
-    # Lệnh PyInstaller với các tùy chọn
-    cmd = [
-        sys.executable,
-        "-m", "PyInstaller",
-        "--name=AutoCashier",
-        "--onefile",
-        "--windowed",
-        "--add-data=config.json;.",
-        "--hidden-import=PIL._tkinter_finder",
-        "--hidden-import=customtkinter",
-        "--hidden-import=tkinterdnd2",
-        "--hidden-import=pypdf",
-        "--hidden-import=docx",
-        "--hidden-import=pptx",
-        "--hidden-import=openpyxl",
-        "--hidden-import=PIL",
-        "--collect-all=customtkinter",
-        "--collect-all=tkinterdnd2",
-        "--noconfirm",
-        "main.py"
-    ]
-    
-    try:
-        # Chạy với output để debug
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        
-        if result.returncode != 0:
-            print("❌ Lỗi khi build!")
-            print()
-            print("STDERR:")
-            print(result.stderr)
-            print()
-            print("STDOUT:")
-            print(result.stdout)
-            sys.exit(1)
-        
-        print()
-        print("✓ Build thành công!")
-        print()
-    except Exception as e:
-        print()
-        print(f"❌ Lỗi khi build: {e}")
-        sys.exit(1)
-
 def build_pyqt5_version():
     """Build PyQt5 version (Windows 7 compatible)"""
     print("[BUILD PyQt5] Build phiên bản Windows 7+...")
+    print("   (Quá trình này có thể mất vài phút)")
     print()
     
     cmd = [
@@ -106,8 +63,8 @@ def build_pyqt5_version():
         "--name=AutoCashier-Win7",
         "--onefile",
         "--windowed",
-        "--add-data=config.json;.",
-        "--add-data=utils.py;.",
+        f"--add-data=config.json{DATA_SEP}.",
+        f"--add-data=utils.py{DATA_SEP}.",
         "--hidden-import=PyQt5",
         "--hidden-import=pypdf",
         "--hidden-import=docx",
@@ -136,6 +93,7 @@ def build_pyqt5_version():
 def build_customtkinter_version():
     """Build CustomTkinter version (Windows 10+ only)"""
     print("[BUILD CustomTkinter] Build phiên bản Windows 10+...")
+    print("   (Quá trình này có thể mất vài phút)")
     print()
     
     cmd = [
@@ -144,8 +102,8 @@ def build_customtkinter_version():
         "--name=AutoCashier-Win10",
         "--onefile",
         "--windowed",
-        "--add-data=config.json;.",
-        "--add-data=utils.py;.",
+        f"--add-data=config.json{DATA_SEP}.",
+        f"--add-data=utils.py{DATA_SEP}.",
         "--hidden-import=PIL._tkinter_finder",
         "--hidden-import=customtkinter",
         "--hidden-import=tkinterdnd2",
@@ -177,12 +135,14 @@ def build_customtkinter_version():
 
 def copy_config():
     """Copy file config vào thư mục dist"""
-    print("[3/4] Copy file cấu hình...")
+    print("[Copy config] Copy file cấu hình...")
     
     dist_folder = Path("dist")
+    
+    # Create dist folder if it doesn't exist (in case both builds failed)
     if not dist_folder.exists():
-        print("❌ Không tìm thấy thư mục dist")
-        sys.exit(1)
+        print("   ⚠ Thư mục dist chưa tồn tại (có thể do build thất bại)")
+        return
     
     # Copy config.json
     config_src = Path("config.json")
@@ -208,9 +168,21 @@ def show_completion():
     
     dist_folder = Path("dist")
     if dist_folder.exists():
-        for exe_file in dist_folder.glob("*.exe"):
-            size_mb = exe_file.stat().st_size / (1024 * 1024)
-            print(f"    📦 {exe_file.name} ({size_mb:.1f} MB)")
+        # On Linux/Mac, executable doesn't have .exe extension
+        if sys.platform == 'win32':
+            pattern = "*.exe"
+        else:
+            pattern = "AutoCashier-*"
+        
+        found_files = False
+        for exe_file in dist_folder.glob(pattern):
+            if exe_file.is_file() and not exe_file.name.endswith('.json'):
+                size_mb = exe_file.stat().st_size / (1024 * 1024)
+                print(f"    📦 {exe_file.name} ({size_mb:.1f} MB)")
+                found_files = True
+        
+        if not found_files:
+            print("    ⚠ Không tìm thấy file executable")
     
     print()
     print("Cách sử dụng:")
@@ -221,6 +193,13 @@ def show_completion():
     print("  • File config.json phải cùng folder với .exe")
     print("  • Windows 7: Cần cài Visual C++ 2015-2019 Redistributable")
     print("  • Link: https://aka.ms/vs/16/release/vc_redist.x64.exe")
+    
+    if sys.platform != 'win32':
+        print()
+        print("⚠️  Lưu ý: Đang build trên Linux/macOS")
+        print("   File executable sẽ chỉ chạy được trên hệ điều hành hiện tại.")
+        print("   Để build cho Windows, vui lòng chạy script trên máy Windows.")
+    
     print()
 
 def main():
