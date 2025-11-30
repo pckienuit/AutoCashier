@@ -85,6 +85,17 @@ def build_pyqt5_version():
             return False
         
         print("✓ Build PyQt5 thành công!")
+        
+        # Add .exe extension on Linux/Mac (for Windows compatibility)
+        if sys.platform != 'win32':
+            dist_folder = Path("dist")
+            exe_file = dist_folder / "AutoCashier-Win7"
+            exe_file_with_ext = dist_folder / "AutoCashier-Win7.exe"
+            
+            if exe_file.exists():
+                exe_file.rename(exe_file_with_ext)
+                print("   ✓ Đã thêm đuôi .exe")
+        
         return True
     except Exception as e:
         print(f"❌ Lỗi: {e}")
@@ -128,6 +139,17 @@ def build_customtkinter_version():
             return False
         
         print("✓ Build CustomTkinter thành công!")
+        
+        # Add .exe extension on Linux/Mac (for Windows compatibility)
+        if sys.platform != 'win32':
+            dist_folder = Path("dist")
+            exe_file = dist_folder / "AutoCashier-Win10"
+            exe_file_with_ext = dist_folder / "AutoCashier-Win10.exe"
+            
+            if exe_file.exists():
+                exe_file.rename(exe_file_with_ext)
+                print("   ✓ Đã thêm đuôi .exe")
+        
         return True
     except Exception as e:
         print(f"❌ Lỗi: {e}")
@@ -168,21 +190,15 @@ def show_completion():
     
     dist_folder = Path("dist")
     if dist_folder.exists():
-        # On Linux/Mac, executable doesn't have .exe extension
-        if sys.platform == 'win32':
-            pattern = "*.exe"
-        else:
-            pattern = "AutoCashier-*"
-        
+        # List all .exe files
         found_files = False
-        for exe_file in dist_folder.glob(pattern):
-            if exe_file.is_file() and not exe_file.name.endswith('.json'):
-                size_mb = exe_file.stat().st_size / (1024 * 1024)
-                print(f"    📦 {exe_file.name} ({size_mb:.1f} MB)")
-                found_files = True
+        for exe_file in dist_folder.glob("*.exe"):
+            size_mb = exe_file.stat().st_size / (1024 * 1024)
+            print(f"    📦 {exe_file.name} ({size_mb:.1f} MB)")
+            found_files = True
         
         if not found_files:
-            print("    ⚠ Không tìm thấy file executable")
+            print("    ⚠ Không tìm thấy file .exe")
     
     print()
     print("Cách sử dụng:")
@@ -197,8 +213,8 @@ def show_completion():
     if sys.platform != 'win32':
         print()
         print("⚠️  Lưu ý: Đang build trên Linux/macOS")
-        print("   File executable sẽ chỉ chạy được trên hệ điều hành hiện tại.")
-        print("   Để build cho Windows, vui lòng chạy script trên máy Windows.")
+        print("   File .exe sẽ chỉ chạy được trên Windows.")
+        print("   Để build cho Linux/macOS, chạy script trên hệ điều hành tương ứng.")
     
     print()
 
