@@ -1,5 +1,16 @@
+# ===== ORIGINAL VERSION (CustomTkinter) =====
+# CustomTkinter chỉ hỗ trợ Windows 10+, macOS 10.13+, Linux
+# Để chạy bản CustomTkinter, dùng: python main.py
 customtkinter
 tkinterdnd2
+pyvirtualdisplay  # Chỉ cần cho Linux headless environment
+
+# ===== WINDOWS 7 VERSION (PyQt5) =====
+# PyQt5 hỗ trợ Windows 7, 8, 10, 11 + Linux + macOS
+# Để chạy bản PyQt5, dùng: python main_pyqt5.py
+PyQt5>=5.15.0
+
+# ===== SHARED DEPENDENCIES =====
 pypdf
 python-docx
 python-pptx
@@ -7,5 +18,3 @@ openpyxl
 Pillow
 pyinstaller
 packaging
-
-pyvirtualdisplay

@@ -2,20 +2,27 @@
 # -*- coding: utf-8 -*-
 """
 Script tự động build file exe cho AutoCashier
+Hỗ trợ cả 2 phiên bản: CustomTkinter (Win10+) và PyQt5 (Win7+)
+
+Usage:
+    python build_exe.py                    # Build both versions
+    python build_exe.py --version pyqt5    # Build only PyQt5 version
+    python build_exe.py --version ctk      # Build only CustomTkinter version
 """
 
 import os
 import sys
 import subprocess
 import shutil
+import argparse
 from pathlib import Path
 
 def print_header():
     """In header"""
-    print("=" * 60)
+    print("=" * 70)
     print("  AutoCashier - Build Executable")
-    print("  Tạo file .exe độc lập")
-    print("=" * 60)
+    print("  Hỗ trợ: PyQt5 (Win7+) và CustomTkinter (Win10+)")
+    print("=" * 70)
     print()
 
 def clean_build_folders():
@@ -88,6 +95,86 @@ def build_executable():
         print(f"❌ Lỗi khi build: {e}")
         sys.exit(1)
 
+def build_pyqt5_version():
+    """Build PyQt5 version (Windows 7 compatible)"""
+    print("[BUILD PyQt5] Build phiên bản Windows 7+...")
+    print()
+    
+    cmd = [
+        sys.executable,
+        "-m", "PyInstaller",
+        "--name=AutoCashier-Win7",
+        "--onefile",
+        "--windowed",
+        "--add-data=config.json;.",
+        "--add-data=utils.py;.",
+        "--hidden-import=PyQt5",
+        "--hidden-import=pypdf",
+        "--hidden-import=docx",
+        "--hidden-import=pptx",
+        "--hidden-import=openpyxl",
+        "--hidden-import=PIL",
+        "--noconsole",
+        "--noconfirm",
+        "main_pyqt5.py"
+    ]
+    
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print("❌ Lỗi khi build PyQt5 version!")
+            print(result.stderr)
+            return False
+        
+        print("✓ Build PyQt5 thành công!")
+        return True
+    except Exception as e:
+        print(f"❌ Lỗi: {e}")
+        return False
+
+def build_customtkinter_version():
+    """Build CustomTkinter version (Windows 10+ only)"""
+    print("[BUILD CustomTkinter] Build phiên bản Windows 10+...")
+    print()
+    
+    cmd = [
+        sys.executable,
+        "-m", "PyInstaller",
+        "--name=AutoCashier-Win10",
+        "--onefile",
+        "--windowed",
+        "--add-data=config.json;.",
+        "--add-data=utils.py;.",
+        "--hidden-import=PIL._tkinter_finder",
+        "--hidden-import=customtkinter",
+        "--hidden-import=tkinterdnd2",
+        "--hidden-import=pypdf",
+        "--hidden-import=docx",
+        "--hidden-import=pptx",
+        "--hidden-import=openpyxl",
+        "--hidden-import=PIL",
+        "--collect-all=customtkinter",
+        "--collect-all=tkinterdnd2",
+        "--noconsole",
+        "--noconfirm",
+        "main.py"
+    ]
+    
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print("❌ Lỗi khi build CustomTkinter version!")
+            print(result.stderr)
+            return False
+        
+        print("✓ Build CustomTkinter thành công!")
+        return True
+    except Exception as e:
+        print(f"❌ Lỗi: {e}")
+        return False
+
 def copy_config():
     """Copy file config vào thư mục dist"""
     print("[3/4] Copy file cấu hình...")
@@ -111,37 +198,81 @@ def copy_config():
 
 def show_completion():
     """Hiển thị thông báo hoàn tất"""
-    print("[4/4] Hoàn tất!")
     print()
-    print("=" * 60)
+    print("=" * 70)
     print("  🎉 BUILD THÀNH CÔNG!")
-    print("=" * 60)
+    print("=" * 70)
     print()
-    print("File exe đã được tạo tại:")
+    print("File exe đã được tạo tại folder 'dist':")
     print()
-    exe_path = Path("dist") / "AutoCashier.exe"
-    print(f"    {exe_path.absolute()}")
+    
+    dist_folder = Path("dist")
+    if dist_folder.exists():
+        for exe_file in dist_folder.glob("*.exe"):
+            size_mb = exe_file.stat().st_size / (1024 * 1024)
+            print(f"    📦 {exe_file.name} ({size_mb:.1f} MB)")
+    
     print()
-    print("Bạn có thể:")
-    print("  1. Double-click file .exe để chạy")
-    print("  2. Copy cả folder 'dist' sang máy khác (không cần Python)")
-    print("  3. Chỉnh sửa config.json trong folder 'dist' để đổi giá")
+    print("Cách sử dụng:")
+    print("  • Windows 7/8:  Dùng AutoCashier-Win7.exe (PyQt5)")
+    print("  • Windows 10+:  Dùng AutoCashier-Win10.exe (CustomTkinter)")
     print()
     print("Lưu ý:")
-    print("  - Lần đầu chạy có thể hơi lâu (giải nén thư viện)")
-    print("  - File exe khoảng 50-100MB (chứa toàn bộ Python runtime)")
-    print("  - Windows Defender có thể cảnh báo, chọn 'Run anyway'")
+    print("  • File config.json phải cùng folder với .exe")
+    print("  • Windows 7: Cần cài Visual C++ 2015-2019 Redistributable")
+    print("  • Link: https://aka.ms/vs/16/release/vc_redist.x64.exe")
     print()
 
 def main():
     """Hàm main"""
+    parser = argparse.ArgumentParser(
+        description="Build AutoCashier executables",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        '--version',
+        choices=['pyqt5', 'ctk', 'both'],
+        default='both',
+        help='Which version to build (default: both)'
+    )
+    parser.add_argument(
+        '--no-clean',
+        action='store_true',
+        help='Skip cleaning previous build artifacts'
+    )
+    
+    args = parser.parse_args()
+    
     print_header()
     
     try:
-        clean_build_folders()
-        build_executable()
+        # Clean
+        if not args.no_clean:
+            clean_build_folders()
+        
+        # Build based on choice
+        success_count = 0
+        
+        if args.version in ['pyqt5', 'both']:
+            if build_pyqt5_version():
+                success_count += 1
+            print()
+        
+        if args.version in ['ctk', 'both']:
+            if build_customtkinter_version():
+                success_count += 1
+            print()
+        
+        # Copy config
         copy_config()
-        show_completion()
+        
+        # Show completion
+        if success_count > 0:
+            show_completion()
+        else:
+            print("❌ Không có version nào build thành công!")
+            sys.exit(1)
+    
     except KeyboardInterrupt:
         print()
         print("❌ Đã hủy build")
